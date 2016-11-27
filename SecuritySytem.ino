@@ -4,7 +4,7 @@
 #include "sms.h"               //http://www.gsmlib.org/download/GSM_GPRS_GPS_IDE100_v307_1.zip
 #include <MillisTimer.h>      //https://github.com/toskabnk/MillisTimer
 #include <TFT_ILI9163C.h>    //https://github.com/sumotoy/TFT_ILI9163C
-#include <Adafruit_GFX.h>   //Https://github.com/adafruit/Adafruit-GFX-Library
+#include <Adafruit_GFX.h>   //https://github.com/adafruit/Adafruit-GFX-Library
 #include <Keypad.h>        //http://playground.arduino.cc/Code/Keypad
 #include <DS3232RTC.h>    //http://github.com/JChristensen/DS3232RTC
 #include <Time.h>        //http://playground.arduino.cc/Code/time
@@ -180,7 +180,7 @@ void loop() {
     }
 
     if (desactivar) {
-      
+
       //Si ha pasado el tiempo y no se ha introducido nada vuelve al menu.
       if (desactTimer.checkTimer()) {
         desactivar = false;
@@ -242,7 +242,7 @@ void loop() {
 
       case '*':
         Serial.println("SIGNAL QUALITY");
-        
+
         gsm.SimpleWriteln("AT+CSQ");
 
         gsm.SimpleRead();
@@ -305,19 +305,19 @@ void loop() {
       gracePeriodTimer.setTimer();
     }
   }
-  
+
   //Si hay intrusos y no se ha avisado, envia los SMS a los telefonos registrados
   if (intrusos && !avisado) {
     if (gracePeriodTimer.checkTimer()) {
       for (int x = 0; x < numTel; x++) {
 
-/*
- * Consigue el telefono de la EEPROM, le añade 34 (España) y envia el SMS
- * Posiblemente no sea la mejor forma de añadir 34 al telefono, pero al menos funciona
- * 
- * Despues de enviar los SMS enciende la sirena
- */
-        
+        /*
+           Consigue el telefono de la EEPROM, le añade 34 (España) y envia el SMS
+           Posiblemente no sea la mejor forma de añadir 34 al telefono, pero al menos funciona
+
+           Despues de enviar los SMS enciende la sirena
+        */
+
         char telAv[9];
         int telAvAux = 0;
         cargaTelefonoEEPROM(telAv, x);

@@ -50,6 +50,15 @@ void moreNumber(){
   drawButtonn("SI","NO",false,false);
 }
 
+void maxNumber(){
+  tft.fillRoundRect(10,80,108,30,8,RED);
+  tft.setTextSize(2);
+  tft.setTextColor(WHITE);
+  tft.setCursor(12,88);
+  tft.println("Max Tel!");
+  drawButtonn("!!","!!",false,false);
+}
+
 
 void drawMarcoSuperiorConfig(){
      tft.fillRect(0,0,128,20,BLUE);

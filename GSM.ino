@@ -80,7 +80,15 @@ void checkSMS()
       }
       intentosSMS=0;
     }
-    else
+    else if((smsstr.substring(0, 1).equals("?") || smsstr.substring(0, 4).equals("info") || smsstr.substring(0, 4).equals("Info")) && checkNum(n)){
+      if(activarAlarma){
+        //sms.SendSMS(n, "La alarma se encuentra activada.");
+      }
+      else{
+        //sms.SendSMS(n, "La alarma se encuentra desactivada.");
+      }
+    }
+    else 
     {
       if(intentosSMS==5){
         //POR HACER

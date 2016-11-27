@@ -63,7 +63,7 @@ void drawTimeDateTemp(boolean refresh){
    
    //Imprimir dia y mes
    tft.setTextSize(2);
-   tft.setCursor(13,60);
+   tft.setCursor(3,60);
    if(day()<10){
     tft.print("0"); //Para añadir un 0 al dia si es menor que 10
    }

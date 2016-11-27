@@ -1,8 +1,8 @@
 
 /*
- * Codigo para la configuracion inicial, pide el pin y los telefonos
- * Unica parte del codigo que es bloqueante, aunque solo lo hace una vez.
- */
+   Codigo para la configuracion inicial, pide el pin y los telefonos
+   Unica parte del codigo que es bloqueante, aunque solo lo hace una vez.
+*/
 
 //Pide el pin
 void primerInicio() {
@@ -80,19 +80,25 @@ void primerInicio2() {
   tft.setTextSize(2);
   tft.setTextColor(WHITE);
   pideTelefono(telInit);
-  moreNumber(); //Pregunta si quiere introducir mas telefonos
-  while (salir) {
-    char tecla = miKeypad.getKey();
+  if (EEPROM.get(99) != MAXTEL) { //Comprueba si ha llegado al limite de numeros guardados
+    moreNumber(); //Pregunta si quiere introducir mas telefonos
+    while (salir) {
+      char tecla = miKeypad.getKey();
 
-    if (tecla == 'A') {
-      salir = false;
-      primerInicio2();
+      if (tecla == 'A') {
+        salir = false;
+        primerInicio2();
 
+      }
+      if (tecla == 'C') {
+        Serial.println(F("NUMEROS GUARDADOS!"));
+        salir = false;
+      }
     }
-    if (tecla == 'C') {
-      Serial.println(F("NUMEROS GUARDADOS!"));
-      salir = false;
-    }
+  }
+  else {
+    maxNumber();
+    delay(1000;)
   }
 
 }
