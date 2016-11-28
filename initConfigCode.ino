@@ -80,7 +80,7 @@ void primerInicio2() {
   tft.setTextSize(2);
   tft.setTextColor(WHITE);
   pideTelefono(telInit);
-  if (EEPROM.get(99) != MAXTEL) { //Comprueba si ha llegado al limite de numeros guardados
+  if (EEPROM.read(99) != MAXTEL) { //Comprueba si ha llegado al limite de numeros guardados
     moreNumber(); //Pregunta si quiere introducir mas telefonos
     while (salir) {
       char tecla = miKeypad.getKey();
@@ -98,7 +98,7 @@ void primerInicio2() {
   }
   else {
     maxNumber();
-    delay(1000;)
+    delay(1000);
   }
 
 }
