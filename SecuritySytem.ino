@@ -1,5 +1,8 @@
 #include <Wire.h>
 #include <EEPROM.h>
+#include "RF24Network.h"           //https://github.com/TMRh20/RF24Network
+#include "RF24.h"                 //https://github.com/TMRh20/RF24
+#include "RF24Mesh.h"            //https://github.com/TMRh20/RF24Mesh
 #include "SIM900.h"
 #include "sms.h"               //http://www.gsmlib.org/download/GSM_GPRS_GPS_IDE100_v307_1.zip
 #include <MillisTimer.h>      //https://github.com/toskabnk/MillisTimer
@@ -17,6 +20,8 @@
 #define DHTTYPE DHT11
 #define SENSOR 12
 #define ALARMA_SONORA 5
+#define CE_RF24 30
+#define CSN_RF24 31
 
 
 /*DIRECCIONES EEPROM
@@ -82,6 +87,7 @@ boolean activarAlarma = false;
 boolean intrusos = false;
 boolean dibujado = false;
 boolean avisado = false;
+boolean movimiento = false;
 
 
 
@@ -92,6 +98,10 @@ DHT dht(DHTPIN, DHTTYPE);
 TFT_ILI9163C tft = TFT_ILI9163C(__CS, __DC);
 //TECLADO MATRICIAL
 Keypad miKeypad = Keypad(makeKeymap(keymap), rowPins, colPins, numRows, numCols);
+//RF24
+RF24 radio(CE_RF24, CSN_RF24);
+RF24Network network(radio);
+RF24Mesh mesh(radio, network);
 //TIMERS
 MillisTimer activationTime(10000);
 MillisTimer minuteTimer(60000); //Tiempo para la actualizacion de la hora
@@ -99,11 +109,16 @@ MillisTimer desactTimer(30000); //Tiempo para el tiempo en el menu de desactivac
 MillisTimer gracePeriodTimer(10000); //Tiempo de gracia para poder desactivar la alarma despues de detectar intrusos
 MillisTimer registerCheckTimer(40000); //Tiempo para comprobar si esta registrado el modulo GSM
 MillisTimer smsCheckTimer(10000); //Tiempo para comprobar si ha llegado un SMS
+MillisTimer configTimer(20000); //Tiempo para salir del menu de configuracion si no se hace nada.
 
 void setup() {
   Serial.begin(9600);
   //PANTALLA
   tft.begin();
+  //RF24
+  mesh.setNodeID(0);
+  Serial.println(mesh.getNodeID());
+  mesh.begin();
   //GSM
   inicializaGSM();
   //RTC
@@ -134,6 +149,27 @@ void setup() {
 }
 
 void loop() {
+  mesh.update();
+  mesh.DHCP();
+  if (network.available()) {
+    RF24NetworkHeader header;
+    network.peek(header);
+    int dat2 = 0;
+    uint32_t dat = 0;
+    switch (header.type) {
+      case 'M':
+        network.read(header, &dat, sizeof(dat));
+        Serial.println(header.type);
+        Serial.println(dat);
+        dat2=(int) dat;
+        if (dat2==1) {
+          movimiento = true;
+          Serial.println("Movimiento!");
+        } break;
+      default: break;
+    }
+  }
+
   /*
      Si no se esta en el menu de desactivacion y no esta dibujado el menu lo dibuja, si esta activada uno y si no, otro.
      Si no se esta en el menu de desactivacion y esta dibujado se actualiza el tiempo y la temperatura.
@@ -223,6 +259,16 @@ void loop() {
   else {
     char tecla1 = miKeypad.getKey();
     switch (tecla1) {
+      case'1':
+        Serial.println(F("********Assigned Addresses********"));
+        for (int i = 0; i < mesh.addrListTop; i++) {
+          Serial.print("NodeID: ");
+          Serial.print(mesh.addrList[i].nodeID);
+          Serial.print(" RF24Network Direccion: 0");
+          Serial.println(mesh.addrList[i].address, OCT);
+        }
+        Serial.println(F("**********************************"));
+        break;
       case 'A':
         activaAlarma();
         break;
@@ -301,6 +347,10 @@ void loop() {
   if (activarAlarma) {
     if (digitalRead(SENSOR) == HIGH) {
       //Pulsador que hace de sensor (De momento)
+      intrusos = true;
+      gracePeriodTimer.setTimer();
+    }
+    if (movimiento == true) {
       intrusos = true;
       gracePeriodTimer.setTimer();
     }
