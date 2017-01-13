@@ -133,6 +133,7 @@ void desactivaAlarma() {
   dibujado = false;
   intrusos = false;
   avisado = false;
+  movimiento = false;
   Serial.println(F("PASS CORRECTA"));
   Serial.println(F("DESACTIVANDO"));
   delay(1000);

@@ -36,9 +36,21 @@
   110-119 2ºNum telefono
   Y asi hasta la 200
 */
+//Zonas
+const char zona1[] PROGMEM = "zona1"; //Zonas guardadas en progmem
+const char zona2[] PROGMEM = "zona2";
+const char zona3[] PROGMEM = "zona3";
+const char* const tabla_zonas[] PROGMEM = {zona1, zona2, zona3};
+char bufferZonas[10];
+
+
+// strcpy_P(buffer, (char*)pgm_read_word(&(string_table[i])));
+
+
 //Constantes
 const byte numRows = 4; //Numero de filas y columnas  keypad
 const byte numCols = 4;
+
 
 //Mapeado del keypad
 char keymap[numRows][numCols] =
@@ -115,24 +127,33 @@ void setup() {
   Serial.begin(9600);
   //PANTALLA
   tft.begin();
+  loadLoadingScreen();
   //RF24
   mesh.setNodeID(0);
-  Serial.println(mesh.getNodeID());
+  Serial.print(F("ID Nodo:")); Serial.println(mesh.getNodeID());
   mesh.begin();
+  loadingScreen(30);
   //GSM
   inicializaGSM();
+  loadingScreen(120);
   //RTC
   initRTC();
+  loadingScreen(160);
   //SENSOR TEMP/HUM
   dht.begin();
+  loadingScreen(190);
   //LED
   pinMode(13, OUTPUT);
+  loadingScreen(200);
   //Sirena
   pinMode(ALARMA_SONORA, OUTPUT);
+  loadingScreen(210);
   //Pulsador
   pinMode(SENSOR, INPUT);
+  loadingScreen(220);
   //Primer Inicio?
   if (EEPROM.read(0) == 0) {
+    loadingScreen(255);
     Serial.println(F("Primer Inicio"));
     primerInicio(); //Si es la primera vez encedido inicia la contraseña.
     primerInicio2(); //Guarda los telefonos
@@ -141,6 +162,7 @@ void setup() {
   else {
     delay(100);
     estadoAnterior();
+    loadingScreen(255);
   }
 
   Serial.println(F("Iniciado"));
@@ -154,17 +176,24 @@ void loop() {
   if (network.available()) {
     RF24NetworkHeader header;
     network.peek(header);
+    int idnode = 0;
     int dat2 = 0;
     uint32_t dat = 0;
     switch (header.type) {
       case 'M':
         network.read(header, &dat, sizeof(dat));
-        Serial.println(header.type);
-        Serial.println(dat);
-        dat2=(int) dat;
-        if (dat2==1) {
-          movimiento = true;
-          Serial.println("Movimiento!");
+        dat2 = (int) dat;
+        idnode = mesh.getNodeID(header.from_node);
+        if (dat2 == 1) {
+          if (activarAlarma) {
+            if (idnode == 1) {
+              strcpy_P(bufferZonas, (char*)pgm_read_word(&(tabla_zonas[0])));
+            } else {
+              strcpy_P(bufferZonas, (char*)pgm_read_word(&(tabla_zonas[1])));
+            }
+            movimiento = true;
+          }
+          Serial.print("Movimiento en zona:"); Serial.println(bufferZonas);
         } break;
       default: break;
     }
@@ -343,16 +372,18 @@ void loop() {
 
   }
 
-  //Si la alarma esta activada, comprueba los sensores
-  if (activarAlarma) {
+  //Si la alarma esta activada, comprueba los sensores y avisa de que hay intrusos si no los habia antes
+  if (activarAlarma && !intrusos) {
     if (digitalRead(SENSOR) == HIGH) {
       //Pulsador que hace de sensor (De momento)
       intrusos = true;
       gracePeriodTimer.setTimer();
+      Serial.println("Intrusos!");
     }
     if (movimiento == true) {
       intrusos = true;
       gracePeriodTimer.setTimer();
+      Serial.println("Intrusos!");
     }
   }
 
@@ -367,31 +398,33 @@ void loop() {
 
            Despues de enviar los SMS enciende la sirena
         */
-
+        char bufferTextoEnviado[40];
+        sprintf(bufferTextoEnviado, "Alarma disparada en: %s", bufferZonas);
         char telAv[9];
         int telAvAux = 0;
         cargaTelefonoEEPROM(telAv, x);
-        char bufffer[11];
-        bufffer[0] = '3';
-        bufffer[1] = '4';
+        char bufferIntrusos[11];
+        bufferIntrusos[0] = '3';
+        bufferIntrusos[1] = '4';
         Serial.println();
         for (int p = 0; p < 9; p++) {
           Serial.print((char)telAv[p]);
         }
         Serial.println();
         for (int xx = 2; xx < 11; xx++) {
-          bufffer[xx] = telAv[telAvAux];
+          bufferIntrusos[xx] = telAv[telAvAux];
           telAvAux++;
-          Serial.print((char)bufffer[xx]);
+          Serial.print((char)bufferIntrusos[xx]);
         }
         Serial.println();
 
         //TODO: Identificacion de zona de la alarma disparada
-        //sms.SendSMS(bufffer, "Alarma disparada!");
+        //sms.SendSMS(bufferIntrusos, "Alarma disparada!");
         for (int pp = 0; pp < 11; pp++) {
-          Serial.print((char)bufffer[pp]);
+          Serial.print((char)bufferIntrusos[pp]);
         }
         Serial.println();
+        Serial.print("Mensaje enviado: "); Serial.println(bufferTextoEnviado);
       }
 
       digitalWrite(ALARMA_SONORA, HIGH);
@@ -407,16 +440,21 @@ void loop() {
   }
 
 
-  //TODO: Se reinicia aunque este registrado, añadir al filto COMM_BUSSY
+
+  //Si no esta regitrado o ocupado se reinicia el modulo GSM
   if (registerCheckTimer.checkTimer()) {
     if (gsm.CheckRegistration() != REG_REGISTERED) {
-      resetGSM();
+      if (gsm.CheckRegistration() != REG_COMM_LINE_BUSY) {
+        Serial.println(F("Modulo GSM Reiniciandose..."));
+        resetGSM();
+      }
     }
+    registerCheckTimer.setTimer();
   }
 
+
+  //Fin loop
 }
-
-
 
 
 
