@@ -6,36 +6,36 @@ int freeRam()
 }
 
 //Muestra la RAM libre en la parte inferior de la pantalla.
-void drawMarcoInferior(){
-   //Marco Inferior
-     tft.fillRect(0,150,128,10,WHITE);
-     tft.setCursor(10,151);
-     tft.setTextColor(RED);
-     tft.setTextSize(1);
-     tft.print("FREERAM:");tft.print(freeRam());
+void drawMarcoInferior() {
+  //Marco Inferior
+  tft.fillRect(0, 150, 128, 10, WHITE);
+  tft.setCursor(10, 151);
+  tft.setTextColor(RED);
+  tft.setTextSize(1);
+  tft.print("FREERAM:"); tft.print(freeRam());
 }
 
 //Dibuja "botones" con el texto indicado
-void drawButtonn(String str1,String str2, boolean invert, boolean mainmenu){
-     //Cuadros cancelar/aceptar
-     if(invert==true && mainmenu==true){
-      tft.fillRect(0,120,64,30,GREEN);
-      tft.fillRect(64,120,64,30,BLUE);
-     }
-     else{
-      if(invert==false && mainmenu==true){
-       tft.fillRect(0,120,64,30,RED);
-       tft.fillRect(64,120,64,30,BLUE);
-       }
-      else{
-      tft.fillRect(0,120,64,30,GREEN);
-      tft.fillRect(64,120,64,30,RED);
-       }
-     }
-     tft.setCursor(2,125);
-     tft.print(str1);
-     tft.setCursor(70,125);
-     tft.print(str2);
+void drawButtonn(String str1, String str2, boolean invert, boolean mainmenu) {
+  //Cuadros cancelar/aceptar
+  if (invert == true && mainmenu == true) {
+    tft.fillRect(0, 120, 64, 30, GREEN);
+    tft.fillRect(64, 120, 64, 30, BLUE);
+  }
+  else {
+    if (invert == false && mainmenu == true) {
+      tft.fillRect(0, 120, 64, 30, RED);
+      tft.fillRect(64, 120, 64, 30, BLUE);
+    }
+    else {
+      tft.fillRect(0, 120, 64, 30, GREEN);
+      tft.fillRect(64, 120, 64, 30, RED);
+    }
+  }
+  tft.setCursor(2, 125);
+  tft.print(str1);
+  tft.setCursor(70, 125);
+  tft.print(str2);
 
 }
 
@@ -74,11 +74,11 @@ void mostrarTelefonos() {
   Serial.println(F("MOSTRADO"));
 }
 
-void warning(String s){
-  tft.fillRoundRect(10,80,108,30,8,RED);
+void warning(String s) {
+  tft.fillRoundRect(10, 80, 108, 30, 8, RED);
   tft.setTextSize(2);
   tft.setTextColor(WHITE);
-  tft.setCursor(12,88);
+  tft.setCursor(12, 88);
   tft.println(s);
 }
 
@@ -143,3 +143,22 @@ void desactivaAlarma() {
   digitalWrite(13, LOW);
   digitalWrite(ALARMA_SONORA, LOW);
 }
+
+void loadConfig() {
+
+
+  //intentosSMS = EEPROM.read(8); delay(10);
+  intentosPass = EEPROM.read(9); delay(10);
+  //if (EEPROM.read(10) != 0) {
+  //  avisoSMS = true;
+  //}
+  Serial.println(F("-----------------Config EEPROM-----------------"));
+  Serial.print(F("-Activation Period: ")); Serial.println(EEPROM.read(6));
+  Serial.print(F("-Grace Period: ")); Serial.println(EEPROM.read(7));
+  //Serial.println(F("-Intentos SMS: ")); Serial.print(intentosSMS);
+  Serial.print(F("-Intentos Pass: ")); Serial.println(intentosPass);
+  Serial.println(F("-----------------------------------------------"));
+}
+
+
+

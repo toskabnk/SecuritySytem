@@ -32,9 +32,9 @@ void gsmpower() {
 }
 
 /*
- * Si hay un SMS no leido lo lee, comprueba que sea un telefono autorizado y activa o desactiva la alarma
- * TODO: Enviar el estado de la alarma si lo pide con "Estado" "estado" etc...
- */
+   Si hay un SMS no leido lo lee, comprueba que sea un telefono autorizado y activa o desactiva la alarma
+   TODO: Enviar el estado de la alarma si lo pide con "Estado" "estado" etc...
+*/
 
 void checkSMS()
 {
@@ -62,7 +62,7 @@ void checkSMS()
         delay(500);
         //sms.SendSMS(n, "Activando alarma");
       }
-      intentosSMS=0;
+      intentosSMS = 0;
 
     }
     else if ((smsstr.substring(0, 3).equals("OFF") || smsstr.substring(0, 3).equals("off") || smsstr.substring(0, 3).equals("Off")) && checkNum(n))
@@ -78,20 +78,21 @@ void checkSMS()
         //sms.SendSMS(n, "Desactivando alarma");
 
       }
-      intentosSMS=0;
+      intentosSMS = 0;
     }
-    else if((smsstr.substring(0, 1).equals("?") || smsstr.substring(0, 4).equals("info") || smsstr.substring(0, 4).equals("Info")) && checkNum(n)){
-      if(activarAlarma){
+    else if ((smsstr.substring(0, 1).equals("?") || smsstr.substring(0, 4).equals("info") || smsstr.substring(0, 4).equals("Info")) && checkNum(n)) {
+      if (activarAlarma) {
         //sms.SendSMS(n, "La alarma se encuentra activada.");
       }
-      else{
+      else {
         //sms.SendSMS(n, "La alarma se encuentra desactivada.");
       }
     }
-    else 
+    else
     {
-      if(intentosSMS==5){
-        //POR HACER
+      intentosSMS++;
+      if (intentosSMS == 5) {
+        avisoSMS = true;
       }
     }
   }
@@ -118,16 +119,16 @@ bool checkNum(char* n) {
 void cargaTelefonoEEPROM(char* telefono, int pos) {
   Serial.println(F("Cargando telefono"));
   char buffer2[40];
-  int i3=0;
-  int i2=0;
-  int i=0;
-  if(pos==0){
-    i2 =100 + 9;
+  int i3 = 0;
+  int i2 = 0;
+  int i = 0;
+  if (pos == 0) {
+    i2 = 100 + 9;
     i = 100;
   }
-  else{
-    i2 = (100+(10* pos)) + 9;
-    i = 100+(10* pos);
+  else {
+    i2 = (100 + (10 * pos)) + 9;
+    i = 100 + (10 * pos);
   }
   sprintf(buffer2, "Empezando desde la posicion %d", i);
   Serial.println(buffer2);
@@ -141,7 +142,7 @@ void cargaTelefonoEEPROM(char* telefono, int pos) {
   Serial.println(F("Telefono cargado!"));
 }
 
-void resetGSM(){
+void resetGSM() {
   digitalWrite(8, HIGH);
   delay(1000);
   digitalWrite(8, LOW);

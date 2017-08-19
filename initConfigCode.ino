@@ -44,12 +44,12 @@ void primerInicio() {
   while (res) {
     char tecla = miKeypad.getKey();
     if (tecla == 'C') {
-      Serial.println(F("GUARDANDO!"));
+      Serial.println(F("VOLVER!"));
       res = false;
       res2 = false;
     }
     if (tecla == 'A') {
-      Serial.println(F("VOLVER!"));
+      Serial.println(F("GUARDANDO!"));
       res = false;
     }
   }
@@ -108,7 +108,6 @@ void pideTelefono(byte* telefono) {
   boolean guardar = false;
   boolean aceptar = true;
   byte i = 0;
-  char numeroTelefono[9]; //Pass a guardar, primero vacia.
 
   while (i < 9) {
     char tecla = miKeypad.getKey();

@@ -31,14 +31,19 @@
   3 Segundo digito pass
   4 Tercer digito pass
   5 Cuarto digito pass
+  6 Segundos antes de activar la alarma
+  7 Segundos antes de que salte a alarma al detectar un intruso
+  8 Intentos SMS
+  9 Intentos Pass
+  10 Pendiente de aviso por sms (Por si se corta el suministro al saltar la alarma
   99 Numero de telefonos guardados
   100-109 1ºNum telefono
   110-119 2ºNum telefono
   Y asi hasta la 200
 */
 //Zonas
-const char zona1[] PROGMEM = "zona1"; //Zonas guardadas en progmem
-const char zona2[] PROGMEM = "zona2";
+const char zona1[] PROGMEM = "Pasillo"; //Zonas guardadas en progmem
+const char zona2[] PROGMEM = "Salon";
 const char zona3[] PROGMEM = "zona3";
 const char* const tabla_zonas[] PROGMEM = {zona1, zona2, zona3};
 char bufferZonas[10];
@@ -92,6 +97,9 @@ char passInt[4]; //Pass que se introduce por el teclado
 byte posInt = 0; //Posicion en la que se guarda el digito tecleado
 byte numTel = EEPROM.read(99); //Numero de numeros de telefonos
 byte intentosSMS = 0; //Intentos para avisar de que han intentado activar/desactivar alarma desde un contacto desconocido
+byte intentosPass = 0; //Intentos
+int gracePeriod = 0; //Tiempo de gracia hasta que salte la alarma
+int activationPeriod = 0; //Tiempo hasta la activacion de alarma despues de conectarla
 
 //Flags
 boolean desactivar = false;
@@ -100,7 +108,10 @@ boolean intrusos = false;
 boolean dibujado = false;
 boolean avisado = false;
 boolean movimiento = false;
-
+boolean configState = false;
+boolean pendienteAviso = false;
+boolean avisoSMS = false;
+boolean bloqueado = false;
 
 
 //Inicializamos
@@ -115,13 +126,17 @@ RF24 radio(CE_RF24, CSN_RF24);
 RF24Network network(radio);
 RF24Mesh mesh(radio, network);
 //TIMERS
-MillisTimer activationTime(10000);
+MillisTimer activationTime(EEPROM.read(6) * 1000);//Tiempo disponible para que no te detecte la alarma al activarla
 MillisTimer minuteTimer(60000); //Tiempo para la actualizacion de la hora
 MillisTimer desactTimer(30000); //Tiempo para el tiempo en el menu de desactivacion
-MillisTimer gracePeriodTimer(10000); //Tiempo de gracia para poder desactivar la alarma despues de detectar intrusos
+MillisTimer gracePeriodTimer(EEPROM.read(7) * 1000); //Tiempo de gracia para poder desactivar la alarma despues de detectar intrusos
 MillisTimer registerCheckTimer(40000); //Tiempo para comprobar si esta registrado el modulo GSM
 MillisTimer smsCheckTimer(10000); //Tiempo para comprobar si ha llegado un SMS
 MillisTimer configTimer(20000); //Tiempo para salir del menu de configuracion si no se hace nada.
+MillisTimer confirmacionTimer(10000); //Tiempo para salir del menu de configuracion si no se hace nada.
+MillisTimer bloqueoIntentos(30000); //Tiempo que el panel esta bloqueado
+MillisTimer numberTime(20000); //Tiempo hasta que se cancele la introduccion de numeros
+
 
 void setup() {
   Serial.begin(9600);
@@ -162,7 +177,9 @@ void setup() {
   else {
     delay(100);
     estadoAnterior();
+    loadConfig();
     loadingScreen(255);
+
   }
 
   Serial.println(F("Iniciado"));
@@ -185,12 +202,13 @@ void loop() {
         dat2 = (int) dat;
         idnode = mesh.getNodeID(header.from_node);
         if (dat2 == 1) {
+          if (idnode == 1) {
+            strcpy_P(bufferZonas, (char*)pgm_read_word(&(tabla_zonas[0])));
+          } else {
+            strcpy_P(bufferZonas, (char*)pgm_read_word(&(tabla_zonas[1])));
+          }
           if (activarAlarma) {
-            if (idnode == 1) {
-              strcpy_P(bufferZonas, (char*)pgm_read_word(&(tabla_zonas[0])));
-            } else {
-              strcpy_P(bufferZonas, (char*)pgm_read_word(&(tabla_zonas[1])));
-            }
+
             movimiento = true;
           }
           Serial.print("Movimiento en zona:"); Serial.println(bufferZonas);
@@ -205,24 +223,33 @@ void loop() {
   */
   if (!desactivar) {
     if (!dibujado) {
-      if (activarAlarma) {
-        mainMenu(true);
-        dibujado = true;
-        minuteTimer.setTimer();
-      }
-      else {
-        mainMenu(false);
-        dibujado = true;
-        minuteTimer.setTimer();
+      if (configState == false) {
+        if (activarAlarma) {
+          mainMenu(true);
+          dibujado = true;
+          minuteTimer.setTimer();
+        }
+        else {
+          mainMenu(false);
+          dibujado = true;
+          minuteTimer.setTimer();
+        }
       }
     }
     else {
       if (minuteTimer.checkTimer()) {
         drawTimeDateTemp(true);
         minuteTimer.setTimer();
+        drawMarcoInferior();
       }
     }
   }
+
+  /*
+     Menu cuando la alarma esta activada.
+     Maneja la desactivacion de la alarma y el bloqueo de ella al tener 5 intentos fallidos (30segundos)
+  */
+
 
   if (activarAlarma) {
     if (!desactivar) {
@@ -246,46 +273,164 @@ void loop() {
 
     if (desactivar) {
 
-      //Si ha pasado el tiempo y no se ha introducido nada vuelve al menu.
-      if (desactTimer.checkTimer()) {
-        desactivar = false;
-        dibujado = false;
-        desactTimer.setTimer();
-      }
-
-      //Obtencion del pin de desactivacion
-      else {
-        char tecla3 = miKeypad.getKey();
-        if (tecla3 && posInt != 4) {
-          passInt[posInt] = tecla3;
-          posInt++;
-          tft.print("*");
-          //Cuando esten los 4 digitos se comprueba se coincide la contraseña
+      //Si hay 5 intentos fallidos se bloquea durante 30s
+      if (intentosPass == 5) {
+        if (bloqueado == false) {
+          bloqueado = true;
+          bloqueoIntentos.setTimer();
+          warning("Bloqueado");
         }
-        if (posInt == 4) {
-          boolean res = compruebaPass(passInt);
-          if (res) {
-            warning("PASS!");
-            desactivaAlarma();
-            desactivar = false;
-            posInt = 0;
-            warning("PASS");
-          }
-          else {
-            desactivar = false;
+
+        else {
+          if (bloqueoIntentos.checkTimer()) {
+            bloqueado = false;
             dibujado = false;
-            posInt = 0;
-            warning("FAIL!");
-            Serial.println(F("PASS INCORRECTA"));
-            delay(1000);
+            desactivar = false;
+            intentosPass = 0;
+          }
+        }
+
+
+      } else {
+        //Si ha pasado el tiempo y no se ha introducido nada vuelve al menu.
+        if (desactTimer.checkTimer()) {
+          desactivar = false;
+          dibujado = false;
+          desactTimer.setTimer();
+        }
+
+        //Obtencion del pin de desactivacion
+        else {
+          char tecla3 = miKeypad.getKey();
+          if (tecla3 && posInt != 4) {
+            passInt[posInt] = tecla3;
+            posInt++;
+            tft.print("*");
+            //Cuando esten los 4 digitos se comprueba se coincide la contraseña
+          }
+          if (posInt == 4) {
+            boolean res = compruebaPass(passInt);
+            if (res) {
+              warning("PASS!");
+              desactivaAlarma();
+              desactivar = false;
+              posInt = 0;
+              intentosPass = 0;
+              warning("PASS");
+              EEPROM.write(9, 0);
+            }
+            else {
+              desactivar = false;
+              dibujado = false;
+              posInt = 0;
+              warning("FAIL!");
+              intentosPass++;
+              EEPROM.write(9, intentosPass);
+              Serial.println(F("PASS INCORRECTA"));
+              delay(1000);
+            }
           }
         }
       }
-
     }
 
   }
+
+  /*
+     Maneja el menu de configuracion con las opciones .
+     Al pasar 20 segundos sin hacer nada vuelve a la pantalla principal
+  */
+
+  else if (configState) {
+    if (configTimer.checkTimer()) {
+      configState = false;
+      dibujado = false;
+    } else {
+      boolean resConfig = false;
+      char tecla3 = miKeypad.getKey();
+      switch (tecla3) {
+
+        case '1':
+          resConfig = confirmacion();
+          if (resConfig) {
+            delay(100);
+            RESTART;
+          }
+          break;
+
+        case'2':
+          resConfig = confirmacion();
+          if (resConfig) {
+            EEPROM.write(99, 0);
+            numTel = 0;
+            primerInicio2();
+          }
+          drawConfig();
+          break;
+
+        case '3':
+          resConfig = confirmacion();
+          if (resConfig) {
+            primerInicio();
+          }
+          drawConfig();
+          break;
+
+        case '4':
+          resConfig = confirmacion();
+          if (resConfig) {
+            EEPROM.write(99, 0);
+            numTel = 0;
+          }
+          drawConfig();
+          break;
+
+        case '5':
+          byte auxCaptaNum;
+          auxCaptaNum = capturaNumero();
+          if (auxCaptaNum == 255) {
+
+          } else {
+            activationPeriod = (int)auxCaptaNum * 1000;
+            EEPROM.write(6, auxCaptaNum);
+            delay(10);
+
+            Serial.println("Periodo cambiado");
+            Serial.println(activationPeriod);
+            Serial.println( EEPROM.read(6));
+          }
+          break;
+
+        case '6':
+          byte auxCaptaNum2;
+          auxCaptaNum2 = capturaNumero();
+          if (auxCaptaNum2 == 255) {
+
+          } else {
+            gracePeriod = (int)auxCaptaNum2 * 1000;
+            EEPROM.write(7, auxCaptaNum2);
+            delay(10);
+            Serial.println("Periodo cambiado");
+            Serial.println(gracePeriod);
+            Serial.println( EEPROM.read(7));
+          }
+          break;
+
+        case 'C':
+          configState = false;
+          dibujado = false;
+          break;
+
+
+        default:
+
+          break;
+      }
+    }
+  }
+
   else {
+    byte yoquese;
     char tecla1 = miKeypad.getKey();
     switch (tecla1) {
       case'1':
@@ -298,12 +443,29 @@ void loop() {
         }
         Serial.println(F("**********************************"));
         break;
+
+      case'2':
+        Serial.println(F("********Capta Numeros********"));
+        yoquese = capturaNumero();
+        Serial.println(yoquese);
+        Serial.println(F("**********************************"));
+        break;
+
+      case'3':
+        Serial.println("CARRIER NAME");
+        gsm.SimpleWriteln("AT+COPS?");
+        gsm.SimpleRead();
+        break;
+
       case 'A':
         activaAlarma();
         break;
 
       case 'C':
-        Serial.println(gsm.CheckRegistration()); //Para debug
+        drawConfig();
+        dibujado = false;
+        configState = true;
+        configTimer.setTimer();
         break;
 
       case 'B':
@@ -317,9 +479,7 @@ void loop() {
 
       case '*':
         Serial.println("SIGNAL QUALITY");
-
         gsm.SimpleWriteln("AT+CSQ");
-
         gsm.SimpleRead();
         break;
 
@@ -336,40 +496,6 @@ void loop() {
 
         break;
     }
-
-    /*if (tecla1 == 'D' || teclaD == true) {
-      teclaD = true;
-      if (gmilis == false) {
-        milis1 = millis();
-      }
-      gmilis = true;
-      if (millis() - milis1 > tempD) {
-        teclaD = false;
-      }
-      else {
-        borrarPantalla(0, 0);
-        lcd.print("!!REINICIO!!");
-        lcd.setCursor(0, 1);
-        lcd.print("SI(*) NO(#)");
-        if (tecla1 == '*') {
-          borrarPantalla(0, 0);
-          EEPROM.write(0, 0);
-          activarAlarma = false;
-          teclaD = false;
-          gmilis = false;
-          lcd.print("REINICIANDO");
-          delay(1000);
-          RESTART;
-
-        }
-        if (tecla1 == '#') {
-          teclaD = false;
-        }
-      }
-
-      }
-    */
-
   }
 
   //Si la alarma esta activada, comprueba los sensores y avisa de que hay intrusos si no los habia antes
@@ -432,6 +558,11 @@ void loop() {
     }
   }
 
+  if (avisoSMS) {
+    avisoSMS = false;
+    //TODO: Avisar a los numeros de los intentos fallidos
+  }
+
 
   //Comprobacion de SMS
   if (smsCheckTimer.checkTimer()) {
@@ -443,8 +574,8 @@ void loop() {
 
   //Si no esta regitrado o ocupado se reinicia el modulo GSM
   if (registerCheckTimer.checkTimer()) {
-    if (gsm.CheckRegistration() != REG_REGISTERED) {
-      if (gsm.CheckRegistration() != REG_COMM_LINE_BUSY) {
+    if (gsm.CheckRegistration() != REG_COMM_LINE_BUSY) {
+      if (gsm.CheckRegistration() != REG_REGISTERED) {
         Serial.println(F("Modulo GSM Reiniciandose..."));
         resetGSM();
       }
