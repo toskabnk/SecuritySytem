@@ -125,7 +125,6 @@ void activaAlarma() {
     Serial.println(F("ALARMA ACTIVADA"));
   }
   digitalWrite(13, HIGH);
-  activationTime.setTimer();
 }
 
 void desactivaAlarma() {

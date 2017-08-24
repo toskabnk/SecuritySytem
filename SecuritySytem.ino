@@ -112,6 +112,7 @@ boolean configState = false;
 boolean pendienteAviso = false;
 boolean avisoSMS = false;
 boolean bloqueado = false;
+boolean cuentaAtras = false;
 
 
 //Inicializamos
@@ -458,7 +459,10 @@ void loop() {
         break;
 
       case 'A':
-        activaAlarma();
+        activationTime.setTimer();
+        cuentaAtras=true;
+        warning("Activando");
+        //activaAlarma();
         break;
 
       case 'C':
@@ -495,6 +499,13 @@ void loop() {
       default:
 
         break;
+    }
+  }
+
+  if(cuentaAtras==true){
+    if(activationTime.checkTimer()){
+      activaAlarma();
+      cuentaAtras=false;
     }
   }
 
